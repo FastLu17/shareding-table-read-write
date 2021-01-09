@@ -1,4 +1,7 @@
+CREATE DATABASE `ds_1` CHARACTER SET 'utf8' COLLATE 'utf8_general_ci';
 CREATE DATABASE `ds_2` CHARACTER SET 'utf8' COLLATE 'utf8_general_ci';
+
+USE `ds_1`;
 
 CREATE TABLE `user_0`(
 	id bigint(64) not null,
