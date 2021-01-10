@@ -1,17 +1,7 @@
 package com.luxf.sharding.service;
 
-import com.luxf.sharding.po.User;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.luxf.sharding.bean.User;
 
-import java.util.List;
-
-public interface UserService {
-
-	List<User> list();
-	
-	Long add(User user);
-	
-	User findById(Long id);
-	
-	User findByName(String name);
-	
+public interface UserService extends IService<User> {
 }

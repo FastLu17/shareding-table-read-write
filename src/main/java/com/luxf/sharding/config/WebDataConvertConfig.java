@@ -28,11 +28,6 @@ public class WebDataConvertConfig implements WebMvcConfigurer {
         simpleModule.addSerializer(Long.class, ToStringSerializer.instance);
         simpleModule.addSerializer(Long.TYPE, ToStringSerializer.instance);
 
-        // 已经自定义枚举的反序列化器和序列化器, 无需此配置(配置后也不生效)
-
-        // 处理自定义枚举, 在ResponseBody中, 使用的是Enum#name()返回的问题、
-        // simpleModule.addSerializer(DescriptionEnum.class, ToStringSerializer.instance);
-
         converters.forEach(converter -> {
             if (converter instanceof MappingJackson2HttpMessageConverter) {
                 MappingJackson2HttpMessageConverter messageConverter = (MappingJackson2HttpMessageConverter) converter;

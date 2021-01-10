@@ -1,48 +1,29 @@
 package com.luxf.sharding.service;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.luxf.sharding.annotations.HintMasterOnly;
-import com.luxf.sharding.po.User;
-import com.luxf.sharding.repository.UserRepository;
+import com.luxf.sharding.bean.User;
+import com.luxf.sharding.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
-import java.util.List;
+import java.io.Serializable;
 
 @Service
-public class UserServiceImpl implements UserService {
-
-    @Resource
-    private UserRepository userRepository;
-
-    @Override
-    public List<User> list() {
-        return userRepository.list();
-    }
-
-    @Override
-    public Long add(User user) {
-        return userRepository.addUser(user);
-    }
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     /**
-     * 通过自定义注解{@link HintMasterOnly}, 即可完成HintManager的强制读取主库的数据的策略、
+     * 不应该在Service层使用{@link HintMasterOnly}, 不是所有调用该getById()地方的都需要强制走master
      *
      * @param id
      * @return
      */
     @Override
-    @HintMasterOnly
-    public User findById(Long id) {
+    // @HintMasterOnly
+    public User getById(Serializable id) {
         // HintManager instance = HintManager.getInstance();
         // instance.setMasterRouteOnly();
-        User user = userRepository.findById(id);
+        User user = super.getById(id);
         // instance.close();
         return user;
     }
-
-    @Override
-    public User findByName(String name) {
-        return userRepository.findByName(name);
-    }
-
 }

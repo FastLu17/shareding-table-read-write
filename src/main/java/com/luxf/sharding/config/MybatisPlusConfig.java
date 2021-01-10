@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
  * @create 2020-12-18 20:39
  **/
 @Configuration
-@MapperScan("com.luxf.sharding.**.repository")
+@MapperScan("com.luxf.sharding.**.mapper")
 public class MybatisPlusConfig {
 
     @Bean
