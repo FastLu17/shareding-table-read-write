@@ -2,7 +2,10 @@ package com.luxf.sharding.controller;
 
 import cn.hutool.core.lang.Snowflake;
 import com.luxf.sharding.annotations.HintMasterOnly;
+import com.luxf.sharding.bean.Answer;
 import com.luxf.sharding.bean.User;
+import com.luxf.sharding.resp.UserAnswerDTO;
+import com.luxf.sharding.service.AnswerService;
 import com.luxf.sharding.service.UserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @Api(value = "用户管理", tags = "用户管理")
@@ -22,7 +26,10 @@ public class UserController {
     private UserService userService;
 
     @Resource
-    private Snowflake idWorder;
+    private AnswerService answerService;
+
+    @Resource
+    private Snowflake idWorker;
 
     @GetMapping("/users")
     @ApiOperation("获取所有用户")
@@ -35,15 +42,38 @@ public class UserController {
     @ApiOperation("添加10个用户")
     public Object add() {
         ArrayList<User> users = new ArrayList<>();
+        ArrayList<Answer> answers = new ArrayList<>();
         for (long i = 0; i < 10; i++) {
             User user = new User();
-            user.setId(idWorder.nextId());
+            user.setId(idWorker.nextId());
             user.setCity("深圳");
             user.setName("李四");
             users.add(user);
+            Answer answer = new Answer();
+            answer.setId(idWorker.nextId());
+            answer.setUserId(user.getId());
+            answer.setText("123");
+            answer.setResult(String.valueOf(i % 2));
+            answers.add(answer);
         }
         userService.saveBatch(users);
+        answerService.saveBatch(answers);
         return "success";
+    }
+
+    /**
+     * 在没有分表的情况下, 该方法对应的SQL查询的结果只有一条数据、 分表之后有4条.
+     * TODO: 这种情况需要如何处理？  理论上 -> 绑定表可以处理、(绑定表之间的分片键/分区键要完全相同)
+     * @param id
+     * @return
+     */
+    @GetMapping("/users/answer/{id}")
+    @ApiOperation("多表关联查询user-answer")
+    @HintMasterOnly
+    public List<UserAnswerDTO> getUserAnswerByUserId(@PathVariable Long id) {
+        List<UserAnswerDTO> dtoList = userService.getUserAnswerByUserId(id);
+        System.out.println("dtoList = " + dtoList);
+        return dtoList;
     }
 
     /**

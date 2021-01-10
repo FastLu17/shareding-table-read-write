@@ -8,4 +8,12 @@
         <result column="name" property="name" jdbcType="VARCHAR"/>
     </resultMap>
 
+    <!-- 分表时不会执行这个Logic SQL. 会执行sharding sphere处理后的Actual SQL -->
+    <select id="getUserAnswerByUserId" resultType="com.luxf.sharding.resp.UserAnswerDTO">
+        select u.*,a.id answerId, a.`text`,a.`result`
+        from `user` u
+                 left join `answer` a on u.id = a.user_id
+        where u.id = #{userId}
+    </select>
+
 </mapper>
