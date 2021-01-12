@@ -2,6 +2,8 @@ package com.luxf.sharding.controller;
 
 import cn.hutool.core.lang.Snowflake;
 import com.luxf.sharding.annotations.HintMasterOnly;
+import com.luxf.sharding.annotations.HintShardingStrategy;
+import com.luxf.sharding.annotations.HintTableStrategy;
 import com.luxf.sharding.bean.Answer;
 import com.luxf.sharding.bean.User;
 import com.luxf.sharding.resp.UserAnswerDTO;
@@ -9,7 +11,6 @@ import com.luxf.sharding.service.AnswerService;
 import com.luxf.sharding.service.UserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import org.apache.shardingsphere.api.hint.HintManager;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,24 +66,21 @@ public class UserController {
     /**
      * 在没有分表的情况下, 该方法对应的SQL查询的结果只有一条数据、 分表之后有4条.
      * TODO: 这种情况需要如何处理？  理论上 -> 绑定表可以处理、(绑定表之间的分片键/分区键要完全相同)
-     *
+     * <p>
      * 通过hint分片的策略是否可以解决呢？
+     * <p>
+     * TODO: 自定义注解灵活使用{@link org.apache.shardingsphere.api.hint.HintManager}, 需要对{@link HintTableStrategy#value()}使用EL表达式进行动态赋值、
+     *
      * @param id
      * @return
      */
     @GetMapping("/users/answer/{id}")
     @ApiOperation("多表关联查询user-answer")
-    //@HintMasterOnly
+    @HintShardingStrategy(masterRouteOnly = true, tableShardingValues = {
+            @HintTableStrategy(logicTable = "user", value = 1348280472009965586L, divisor = 4),
+            @HintTableStrategy(logicTable = "answer", value = 1348280472009965586L, divisor = 4)
+    })
     public List<UserAnswerDTO> getUserAnswerByUserId(@PathVariable Long id) {
-        HintManager instance = HintManager.getInstance();
-        instance.setMasterRouteOnly();
-        // instance.addDatabaseShardingValue("user", 0);
-        long value = id % 4;
-        System.out.println("value = " + value);
-        instance.addTableShardingValue("user", value);
-        instance.addTableShardingValue("answer", value);
-
-        // instance.setDatabaseShardingValue(0); 只分库
         List<UserAnswerDTO> dtoList = userService.getUserAnswerByUserId(id);
         System.out.println("dtoList = " + dtoList);
         return dtoList;

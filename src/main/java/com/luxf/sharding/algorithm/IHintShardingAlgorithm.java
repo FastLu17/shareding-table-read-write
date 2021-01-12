@@ -27,7 +27,8 @@ public class IHintShardingAlgorithm implements HintShardingAlgorithm<Long> {
             String suffix = targetName.substring(targetName.length() - 1);
             if (StringUtils.isNumber(suffix)) {
                 for (Long value : shardingValue.getValues()) {
-                    if (value % 4 == Long.parseLong(suffix)) {
+                    // shardingValue的value值, 由HintManager.addTableShardingValue("logicTable",value)传入, 可以更加灵活、
+                    if (value == Long.parseLong(suffix)) {
                         shardingResult.add(targetName);
                         break;
                     }

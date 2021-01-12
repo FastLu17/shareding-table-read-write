@@ -1,5 +1,6 @@
 package com.luxf.sharding.aop;
 
+import com.luxf.sharding.annotations.HintShardingStrategy;
 import org.apache.shardingsphere.api.hint.HintManager;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -8,12 +9,16 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.stereotype.Component;
 
 /**
+ * 使用更全面的注解{@link HintShardingStrategy}代替{@link com.luxf.sharding.annotations.HintMasterOnly}
+ *
  * @author 小66
- * @Description
  * @create 2021-01-09 17:25
+ * @see HintShardingStrategy
+ * @see HintShardingStrategyAspect
  **/
 @Aspect
 @Component
+@Deprecated
 public class HintMasterAspect {
 
     @Pointcut(value = "@annotation(com.luxf.sharding.annotations.HintMasterOnly)")
