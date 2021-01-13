@@ -21,8 +21,9 @@ public @interface HintDatabaseStrategy {
 
     /**
      * sharding value. value >= 0. (需要类似Spring Cache一样, 集成EL表达式动态赋值.)
+     * 使用SpEL解析、
      */
-    long value();
+    String spelValue();
 
     /**
      * 进行 mod operation 的除数、取余运算. value > 0

@@ -1,6 +1,7 @@
 package com.luxf.sharding.controller;
 
 import cn.hutool.core.lang.Snowflake;
+import com.luxf.sharding.annotations.HintDatabaseStrategy;
 import com.luxf.sharding.annotations.HintMasterOnly;
 import com.luxf.sharding.annotations.HintShardingStrategy;
 import com.luxf.sharding.annotations.HintTableStrategy;
@@ -69,7 +70,7 @@ public class UserController {
      * <p>
      * 通过hint分片的策略是否可以解决呢？
      * <p>
-     * TODO: 自定义注解灵活使用{@link org.apache.shardingsphere.api.hint.HintManager}, 需要对{@link HintTableStrategy#value()}使用EL表达式进行动态赋值、
+     * TODO: 自定义注解灵活使用{@link org.apache.shardingsphere.api.hint.HintManager}, 需要对{@link HintTableStrategy#spelValue()}使用SpEL表达式进行动态赋值、
      *
      * @param id
      * @return
@@ -77,8 +78,8 @@ public class UserController {
     @GetMapping("/users/answer/{id}")
     @ApiOperation("多表关联查询user-answer")
     @HintShardingStrategy(masterRouteOnly = true, tableShardingValues = {
-            @HintTableStrategy(logicTable = "user", value = 1348280472009965586L, divisor = 4),
-            @HintTableStrategy(logicTable = "answer", value = 1348280472009965586L, divisor = 4)
+            @HintTableStrategy(logicTable = "user", spelValue = "#id", divisor = 4),
+            @HintTableStrategy(logicTable = "answer", spelValue = "#id", divisor = 4)
     })
     public List<UserAnswerDTO> getUserAnswerByUserId(@PathVariable Long id) {
         List<UserAnswerDTO> dtoList = userService.getUserAnswerByUserId(id);

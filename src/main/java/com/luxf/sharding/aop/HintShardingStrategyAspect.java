@@ -4,12 +4,26 @@ import com.luxf.sharding.annotations.HintDatabaseOnly;
 import com.luxf.sharding.annotations.HintDatabaseStrategy;
 import com.luxf.sharding.annotations.HintShardingStrategy;
 import com.luxf.sharding.annotations.HintTableStrategy;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.shardingsphere.api.hint.HintManager;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
+import org.springframework.core.ParameterNameDiscoverer;
+import org.springframework.core.convert.ConversionService;
+import org.springframework.core.convert.support.DefaultConversionService;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
+
+import java.lang.reflect.Method;
+import java.util.Objects;
 
 /**
  * TODO: 可以单独兼容{@link HintShardingStrategy}内部的每一个注解{@link HintDatabaseOnly,HintDatabaseStrategy,HintTableStrategy}、
@@ -23,7 +37,20 @@ import org.springframework.stereotype.Component;
  **/
 @Aspect
 @Component
+@Slf4j
 public class HintShardingStrategyAspect {
+
+    /**
+     * converter、 A shared default {@code ConversionService} instance, lazily building it once needed.
+     */
+    private ConversionService converter = DefaultConversionService.getSharedInstance();
+
+    /**
+     * SpEL parser. Instances are reusable and thread-safe.
+     *
+     * @see SpelExpressionParser
+     */
+    private ExpressionParser parser = new SpelExpressionParser();
 
     @Pointcut(value = "@annotation(com.luxf.sharding.annotations.HintShardingStrategy)")
     public void pointCut() {
@@ -44,16 +71,61 @@ public class HintShardingStrategyAspect {
             if (databaseOnly.databaseShardingOnly() && databaseOnly.value() >= 0) {
                 instance.setDatabaseShardingValue(databaseOnly.value());
             } else {
+                MethodSignature signature = (MethodSignature) pjp.getSignature();
+                Method method = signature.getMethod();
+                Object[] args = pjp.getArgs();
+
                 HintTableStrategy[] tableValues = hintStrategy.tableShardingValues();
                 for (HintTableStrategy tableValue : tableValues) {
-                    instance.addTableShardingValue(tableValue.logicTable(), tableValue.value() % tableValue.divisor());
+                    Long value = getLongValue(method, args, tableValue.spelValue());
+                    Assert.isTrue(tableValue.divisor() > 0, "sharding divisor must be positive.");
+                    instance.addTableShardingValue(tableValue.logicTable(), value % tableValue.divisor());
                 }
                 HintDatabaseStrategy[] databaseValues = hintStrategy.databaseShardingValues();
                 for (HintDatabaseStrategy databaseValue : databaseValues) {
-                    instance.addDatabaseShardingValue(databaseValue.logicTable(), databaseValue.value() % databaseValue.value());
+                    Long value = getLongValue(method, args, databaseValue.spelValue());
+                    Assert.isTrue(databaseValue.divisor() > 0, "sharding divisor must be positive.");
+                    instance.addDatabaseShardingValue(databaseValue.logicTable(), value % databaseValue.divisor());
                 }
             }
             return pjp.proceed();
         }
+    }
+
+    /**
+     * 将SpEL解析的值转换为Long、不正确使用{@link HintTableStrategy,HintDatabaseStrategy}直接抛出异常.
+     */
+    private Long getLongValue(Method method, Object[] args, String spelExpression) {
+        Object parseValue = parseExpression(spelExpression, method, args);
+        // 直接convert()、 不同提前调用canConvert()判断.  不能convert, 会抛出异常.
+        Long convert = converter.convert(parseValue, Long.TYPE);
+        Assert.isTrue(Objects.requireNonNull(convert) > 0, "sharding value can not be negative.");
+        return convert;
+    }
+
+    /**
+     * 获取SpEL表达式的解析值、
+     *
+     * TODO: 看看Spring Cache的源码, 如何处理的SpEL表达式、
+     *
+     * @param spelExpression SPEL表达式
+     * @param method         被拦截的方法
+     * @param args           被拦截的方法参数
+     * @return parse value.
+     */
+    private Object parseExpression(String spelExpression, Method method, Object[] args) {
+        if (Objects.isNull(args) || args.length == 0) {
+            return null;
+        }
+        // 获取被拦截方法参数名列表、
+        ParameterNameDiscoverer discoverer = new LocalVariableTableParameterNameDiscoverer();
+        String[] paramNameArr = Objects.requireNonNull(discoverer.getParameterNames(method));
+
+        // SpEL解析
+        EvaluationContext context = new StandardEvaluationContext();
+        for (int i = 0; i < paramNameArr.length; i++) {
+            context.setVariable(paramNameArr[i], args[i]);
+        }
+        return parser.parseExpression(spelExpression).getValue(context);
     }
 }
