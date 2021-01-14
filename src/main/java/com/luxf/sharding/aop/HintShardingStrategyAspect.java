@@ -16,7 +16,6 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.context.expression.CachedExpressionEvaluator;
 import org.springframework.core.DefaultParameterNameDiscoverer;
-import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.DefaultConversionService;
@@ -139,6 +138,9 @@ public class HintShardingStrategyAspect {
 
         /**
          * 创建EvaluationContext、 如有需要,可自定义一个{@link org.springframework.context.expression.MethodBasedEvaluationContext}的实现类.
+         *
+         * 需要排除掉result. --> evaluationContext.addUnavailableVariable("result");
+         * @see org.springframework.cache.interceptor.CacheEvaluationContext#lookupVariable(String)
          * @see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#createEvaluationContext(Collection, Method, Object[], Object, Class, Method, Object, BeanFactory)
          */
         // SpEL解析
