@@ -47,8 +47,10 @@ public class ExtendCacheAspect {
         if (DataType.HASH.equals(extendCacheable.dataType())) {
             Method method = ((MethodSignature) pjp.getSignature()).getMethod();
             String hashKey = ExpressionParseUtils.getParseValue(extendCacheable.hashKey(), method, pjp.getArgs());
-            ExtendCacheHolder.setDataType(extendCacheable.dataType());
-            ExtendCacheHolder.setHashKey(hashKey);
+            if (hashKey != null && hashKey.trim().length() > 0) {
+                ExtendCacheHolder.setDataType(extendCacheable.dataType());
+                ExtendCacheHolder.setHashKey(hashKey);
+            }
         }
         return pjp.proceed();
     }

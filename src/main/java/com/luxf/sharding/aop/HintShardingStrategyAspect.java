@@ -129,25 +129,29 @@ public class HintShardingStrategyAspect {
      * @see CachedExpressionEvaluator
      */
     private Object parseExpression(String spelExpression, Method method, Object[] args) {
-        if (Objects.isNull(args) || args.length == 0) {
-            return null;
-        }
+        // 不可直接返回、 SpEL可以解析字符串. 'answer'
+        // if (Objects.isNull(args) || args.length == 0) {
+        //     return null;
+        // }
 
-        String[] paramNameArr = Objects.requireNonNull(discoverer.getParameterNames(method));
+        String[] paramNameArr = discoverer.getParameterNames(method);
 
         /**
-         * 创建EvaluationContext、 如有需要,可自定义一个{@link org.springframework.context.expression.MethodBasedEvaluationContext}的实现类.
+         * 创建EvaluationContext、如有需要,可自定义一个{@link org.springframework.context.expression.MethodBasedEvaluationContext}的实现类.
          *
-         * 需要排除掉result. --> evaluationContext.addUnavailableVariable("result");
+         * 不解析result, 则需要排除掉result. --> evaluationContext.addUnavailableVariable("result");
          * @see org.springframework.cache.interceptor.CacheEvaluationContext#lookupVariable(String)
          * @see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#createEvaluationContext(Collection, Method, Object[], Object, Class, Method, Object, BeanFactory)
          */
-        // SpEL解析
-        EvaluationContext context = new StandardEvaluationContext();
-        for (int i = 0; i < paramNameArr.length; i++) {
-            context.setVariable(paramNameArr[i], args[i]);
+        Expression expression = parser.parseExpression(spelExpression);
+        if (Objects.nonNull(paramNameArr)) {
+            EvaluationContext context = new StandardEvaluationContext();
+            for (int i = 0; i < paramNameArr.length; i++) {
+                context.setVariable(paramNameArr[i], args[i]);
+            }
+            return expression.getValue(context);
         }
-        return parser.parseExpression(spelExpression).getValue(context);
+        return expression.getValue();
     }
 
     /**

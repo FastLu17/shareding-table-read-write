@@ -6,6 +6,7 @@ import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
@@ -47,11 +48,12 @@ public class ExpressionParseUtils {
     }
 
     private static Object parseExpression(String spelExpression, Method method, Object[] args) {
-        if (Objects.isNull(args) || args.length == 0) {
-            return null;
-        }
+        // 不可直接返回、 SpEL可以解析字符串. 'answer'
+        // if (Objects.isNull(args) || args.length == 0) {
+        //     return null;
+        // }
 
-        String[] paramNameArr = Objects.requireNonNull(discoverer.getParameterNames(method));
+        String[] paramNameArr = discoverer.getParameterNames(method);
 
         /**
          * 创建EvaluationContext、如有需要,可自定义一个{@link org.springframework.context.expression.MethodBasedEvaluationContext}的实现类.
@@ -60,10 +62,14 @@ public class ExpressionParseUtils {
          * @see org.springframework.cache.interceptor.CacheEvaluationContext#lookupVariable(String)
          * @see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#createEvaluationContext(Collection, Method, Object[], Object, Class, Method, Object, BeanFactory)
          */
-        EvaluationContext context = new StandardEvaluationContext();
-        for (int i = 0; i < paramNameArr.length; i++) {
-            context.setVariable(paramNameArr[i], args[i]);
+        Expression expression = parser.parseExpression(spelExpression);
+        if (Objects.nonNull(paramNameArr)) {
+            EvaluationContext context = new StandardEvaluationContext();
+            for (int i = 0; i < paramNameArr.length; i++) {
+                context.setVariable(paramNameArr[i], args[i]);
+            }
+            return expression.getValue(context);
         }
-        return parser.parseExpression(spelExpression).getValue(context);
+        return expression.getValue();
     }
 }
