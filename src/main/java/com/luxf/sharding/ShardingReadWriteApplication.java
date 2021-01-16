@@ -6,6 +6,7 @@ import org.apache.shardingsphere.core.route.router.sharding.ShardingRouter;
 import org.apache.shardingsphere.shardingjdbc.jdbc.core.statement.ShardingPreparedStatement;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 
 /**
  * sharding sphere 主从-读写分离
@@ -19,6 +20,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @see ShardingRouter#route(java.lang.String, java.util.List, org.apache.shardingsphere.core.parse.antlr.sql.statement.SQLStatement)
  */
 @SpringBootApplication
+@EnableCaching
 public class ShardingReadWriteApplication {
     public static void main(String[] args) {
         SpringApplication.run(ShardingReadWriteApplication.class, args);

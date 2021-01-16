@@ -3,6 +3,7 @@ package com.luxf.sharding.service;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.luxf.sharding.annotations.HintMasterOnly;
 import com.luxf.sharding.bean.User;
+import com.luxf.sharding.cache.ExtendCacheable;
 import com.luxf.sharding.mapper.UserMapper;
 import com.luxf.sharding.resp.UserAnswerDTO;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public List<UserAnswerDTO> getUserAnswerByUserId(Long userId){
+    // @Cacheable(value = "User", key = "#userId") --> 只能操作 redis string、
+    @ExtendCacheable(value = "User", key = "#userId", hashKey = "'answer'")
+    public List<UserAnswerDTO> getUserAnswerByUserId(Long userId) {
         return baseMapper.getUserAnswerByUserId(userId);
     }
 }

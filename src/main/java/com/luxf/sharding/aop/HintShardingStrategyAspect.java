@@ -13,7 +13,6 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.context.expression.CachedExpressionEvaluator;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.ParameterNameDiscoverer;
@@ -124,9 +123,9 @@ public class HintShardingStrategyAspect {
      * @param method         被拦截的方法
      * @param args           被拦截的方法参数
      * @return parse value.
-     * @see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#key(String, AnnotatedElementKey, EvaluationContext)
-     * @see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#condition(String, AnnotatedElementKey, EvaluationContext)
-     * @see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#unless(String, AnnotatedElementKey, EvaluationContext)
+     * see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#key(String, AnnotatedElementKey, EvaluationContext)
+     * see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#condition(String, AnnotatedElementKey, EvaluationContext)
+     * see org.springframework.cache.interceptor.CacheOperationExpressionEvaluator#unless(String, AnnotatedElementKey, EvaluationContext)
      * @see CachedExpressionEvaluator
      */
     private Object parseExpression(String spelExpression, Method method, Object[] args) {
@@ -151,7 +150,15 @@ public class HintShardingStrategyAspect {
         return parser.parseExpression(spelExpression).getValue(context);
     }
 
-    public static void main (String[]args){
+    /**
+     * SpEl 支持的计算变量：
+     * 1）#ai、#pi、#命名参数【i 表示参数下标，从 0 开始】
+     * 2）#result：CachePut 操作和后处理 CacheEvict 操作都可使用
+     * 3）#root：CacheExpressionRootObject 对象
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
         // 创建一个ExpressionParser对象，用于解析表达式
         ExpressionParser parser = new SpelExpressionParser();
 
@@ -182,7 +189,7 @@ public class HintShardingStrategyAspect {
         System.out.println("以user为root, name表达式的值是: " + exp.getValue(user, String.class));
 
         exp = parser.parseExpression("name=='孙悟空'");
-        System.out.println("name=='孙悟空': " + exp.getValue(user,Boolean.TYPE));
+        System.out.println("name=='孙悟空': " + exp.getValue(user, Boolean.TYPE));
 
         // 创建一个List
         List<String> list = new ArrayList<>();
