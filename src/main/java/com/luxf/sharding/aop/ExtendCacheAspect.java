@@ -1,8 +1,8 @@
 package com.luxf.sharding.aop;
 
-import com.luxf.sharding.utils.ExtendCacheHolder;
 import com.luxf.sharding.cache.ExtendCacheable;
 import com.luxf.sharding.utils.ExpressionParseUtils;
+import com.luxf.sharding.utils.ExtendCacheHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -47,10 +47,8 @@ public class ExtendCacheAspect {
         if (DataType.HASH.equals(extendCacheable.dataType())) {
             Method method = ((MethodSignature) pjp.getSignature()).getMethod();
             String hashKey = ExpressionParseUtils.getParseValue(extendCacheable.hashKey(), method, pjp.getArgs());
-            if (hashKey != null && hashKey.trim().length() > 0) {
-                ExtendCacheHolder.setDataType(extendCacheable.dataType());
-                ExtendCacheHolder.setHashKey(hashKey);
-            }
+            ExtendCacheHolder.setDataType(extendCacheable.dataType());
+            ExtendCacheHolder.setHashKey(hashKey);
         }
         return pjp.proceed();
     }
