@@ -2,6 +2,8 @@ package com.luxf.sharding.cache;
 
 import com.luxf.sharding.utils.ExtendCacheHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.interceptor.CacheAspectSupport;
+import org.springframework.cache.interceptor.CacheOperationInvoker;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.DataType;
@@ -76,6 +78,12 @@ public class IRedisCacheWriter implements RedisCacheWriter {
         Assert.notNull(value, "Value must not be null!");
 
         execute(name, connection -> {
+            // TODO: bug -> seconds, datatype 均为 null.
+            /**
+             * 已处理: 先执行了get()方法, 没有命中结果就执行了{@link ExtendCacheHolder#clear()}, 导致执行put()方法时, ExtendCacheHolder中的数据全是null.
+             */
+            Long seconds = ExtendCacheHolder.getDuration();
+            Duration finalTtl = getFinalTtl(seconds, ttl);
             DataType dataType = ExtendCacheHolder.getDataType();
             if (DataType.HASH.equals(dataType)) {
                 // TODO: 使用lua脚本可以保证原子性、
@@ -83,29 +91,21 @@ public class IRedisCacheWriter implements RedisCacheWriter {
                 if (isEmpty(hashKey)) {
                     return null;
                 }
-                ExtendCacheHolder.clear();
+                // ExtendCacheHolder.clear();
                 connection.hSet(key, hashKeySerializer.serialize(hashKey), value);
-                if (shouldExpireWithin(ttl)) {
-                    connection.expire(key, ttl.getSeconds());
+                if (shouldExpireWithin(finalTtl)) {
+                    connection.expire(key, finalTtl.getSeconds());
                 }
                 return "OK";
             }
 
-            if (shouldExpireWithin(ttl)) {
-                connection.set(key, value, Expiration.from(ttl.toMillis(), TimeUnit.MILLISECONDS), RedisStringCommands.SetOption.upsert());
+            if (shouldExpireWithin(finalTtl)) {
+                connection.set(key, value, Expiration.from(finalTtl.toMillis(), TimeUnit.MILLISECONDS), RedisStringCommands.SetOption.upsert());
             } else {
                 connection.set(key, value);
             }
             return "OK";
         });
-    }
-
-    private boolean isEmpty(String hashKey) {
-        if (hashKey == null || hashKey.trim().length() == 0) {
-            log.error("ExtendCacheHolder.getHashKey() is empty.");
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -128,7 +128,12 @@ public class IRedisCacheWriter implements RedisCacheWriter {
                 if (isEmpty(hashKey)) {
                     return null;
                 }
-                ExtendCacheHolder.clear();
+                /**
+                 * 解决BUG: 在put()方法处, 获取ExtendCacheHolder中的值全是null. --> 由于execute()方法, 先执行get(), 没有命中时, 才会执行put()、
+                 * 因此: 不能在get()方法就调用{@link ExtendCacheHolder#clear()}, 需要在{@link org.aspectj.lang.annotation.Around}方法的finally代码块中释放ThreadLocal资源.
+                 * @see CacheAspectSupport#execute(CacheOperationInvoker, java.lang.reflect.Method, CacheAspectSupport.CacheOperationContexts)
+                 */
+                // ExtendCacheHolder.clear();
                 byte[] hGet = connection.hGet(key, hashKeySerializer.serialize(hashKey));
                 return hGet;
             }
@@ -188,7 +193,7 @@ public class IRedisCacheWriter implements RedisCacheWriter {
                 if (isEmpty(hashKey)) {
                     return null;
                 }
-                ExtendCacheHolder.clear();
+                // ExtendCacheHolder.clear();
                 connection.hDel(key, hashKeySerializer.serialize(hashKey));
                 return null;
             }
@@ -304,5 +309,25 @@ public class IRedisCacheWriter implements RedisCacheWriter {
 
     private static byte[] createCacheLockKey(String name) {
         return (name + "~lock").getBytes(StandardCharsets.UTF_8);
+    }
+
+    private Duration getFinalTtl(Long seconds, @Nullable Duration ttl) {
+        Duration finalTtl = ttl;
+        if (seconds != null) {
+            Duration duration = Duration.ofSeconds(seconds);
+            boolean shouldExpire = shouldExpireWithin(duration);
+            if (shouldExpire) {
+                finalTtl = duration;
+            }
+        }
+        return finalTtl;
+    }
+
+    private boolean isEmpty(String hashKey) {
+        if (hashKey == null || hashKey.trim().length() == 0) {
+            log.error("ExtendCacheHolder.getHashKey() is empty.");
+            return true;
+        }
+        return false;
     }
 }

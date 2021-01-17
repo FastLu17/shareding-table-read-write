@@ -25,6 +25,13 @@ import java.lang.annotation.*;
 public @interface ExtendCacheable {
 
     /**
+     * expire time of redis cache.
+     * <p>
+     * {@link  java.util.concurrent.TimeUnit#SECONDS}
+     */
+    long duration() default -1;
+
+    /**
      * SpEL表达式.
      * <p>
      * redis hash -> field.

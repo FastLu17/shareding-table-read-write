@@ -17,6 +17,7 @@ import org.springframework.data.redis.connection.DataType;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 
 /**
  * 当前AOP顺序必须需要在{@link org.springframework.cache.interceptor.CacheInterceptor}之前. 即当前AOP的order小于{@link EnableCaching#order()}
@@ -44,12 +45,24 @@ public class ExtendCacheAspect {
 
     @Around(value = "pointCut() && @annotation(extendCacheable)")
     public Object doAround(ProceedingJoinPoint pjp, ExtendCacheable extendCacheable) throws Throwable {
-        if (DataType.HASH.equals(extendCacheable.dataType())) {
-            Method method = ((MethodSignature) pjp.getSignature()).getMethod();
-            String hashKey = ExpressionParseUtils.getParseValue(extendCacheable.hashKey(), method, pjp.getArgs());
-            ExtendCacheHolder.setDataType(extendCacheable.dataType());
-            ExtendCacheHolder.setHashKey(hashKey);
+        try {
+            if (DataType.HASH.equals(extendCacheable.dataType())) {
+                Method method = ((MethodSignature) pjp.getSignature()).getMethod();
+                String hashKey = ExpressionParseUtils.getParseValue(extendCacheable.hashKey(), method, pjp.getArgs());
+                ExtendCacheHolder.setDataType(extendCacheable.dataType());
+                ExtendCacheHolder.setHashKey(hashKey);
+            }
+            long duration = extendCacheable.duration();
+            if (duration != -1) {
+                ExtendCacheHolder.setDuration(duration);
+            }
+            return pjp.proceed();
+        } finally {
+            /**
+             * 在finally代码块中统一释放ThreadLocal资源、
+             * 解决{@link com.luxf.sharding.cache.IRedisCacheWriter#put(String, byte[], byte[], Duration)}中, 获取不到值的bug.
+             */
+            ExtendCacheHolder.clear();
         }
-        return pjp.proceed();
     }
 }

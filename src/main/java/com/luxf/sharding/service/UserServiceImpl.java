@@ -32,7 +32,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     // @Cacheable(value = "User", key = "#userId") --> 只能操作 redis string、
-    @ExtendCacheable(value = "User", key = "#userId", hashKey = "'answer'")
+    @ExtendCacheable(value = "User", key = "#userId", hashKey = "'answer'", duration = 10 * 60)
     public List<UserAnswerDTO> getUserAnswerByUserId(Long userId) {
         return baseMapper.getUserAnswerByUserId(userId);
     }
