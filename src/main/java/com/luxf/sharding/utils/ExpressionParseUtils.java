@@ -1,6 +1,7 @@
 package com.luxf.sharding.utils;
 
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.context.expression.MethodBasedEvaluationContext;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.core.convert.ConversionService;
@@ -47,6 +48,14 @@ public class ExpressionParseUtils {
         return converter.convert(parseExpression(spelExpression, method, args), String.class);
     }
 
+    /**
+     * @param rootObject the root object against which to evaluate the expression
+     * @see Expression#getValue(EvaluationContext, Object)
+     */
+    public static String getParseValue(String spelExpression, Object rootObject, Method method, Object[] args) {
+        return converter.convert(parseExpression(spelExpression, rootObject, method, args), String.class);
+    }
+
     private static Object parseExpression(String spelExpression, Method method, Object[] args) {
         // 不可直接返回、 SpEL可以解析字符串. 'answer'
         // if (Objects.isNull(args) || args.length == 0) {
@@ -71,5 +80,17 @@ public class ExpressionParseUtils {
             return expression.getValue(context);
         }
         return expression.getValue();
+    }
+
+    private static Object parseExpression(String spelExpression, Object rootObject, Method method, Object[] args) {
+        /**
+         * 创建与 {@link org.springframework.cache.interceptor.CacheOperationExpressionEvaluator} 相同的Context -> org.springframework.cache.interceptor.CacheEvaluationContext
+         *
+         * @see MethodBasedEvaluationContext#lookupVariable(java.lang.String) --> 会更加全面的处理{@link EvaluationContext#setVariable(String, Object)}方法.
+         */
+        Expression expression = parser.parseExpression(spelExpression);
+        MethodBasedEvaluationContext context = new MethodBasedEvaluationContext(rootObject, method, args, discoverer);
+        // context.setBeanResolver(new BeanFactoryResolver(beanFactory)); // 如有需要,可以传入BeanFactory、
+        return expression.getValue(context, rootObject);
     }
 }

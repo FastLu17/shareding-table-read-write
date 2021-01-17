@@ -1,7 +1,6 @@
 package com.luxf.sharding.controller;
 
 import cn.hutool.core.lang.Snowflake;
-import com.luxf.sharding.annotations.HintDatabaseStrategy;
 import com.luxf.sharding.annotations.HintMasterOnly;
 import com.luxf.sharding.annotations.HintShardingStrategy;
 import com.luxf.sharding.annotations.HintTableStrategy;
@@ -33,6 +32,48 @@ public class UserController {
 
     @Resource
     private Snowflake idWorker;
+
+    @GetMapping("/get/{id}")
+    @ApiOperation("根据ID查询用户")
+    @HintShardingStrategy(masterRouteOnly = true)
+    public User getById(@PathVariable Long id) {
+        return userService.getById(id);
+    }
+
+    /**
+     * TODO: 新增 使用了HintStrategy, 但是没有指定分表参数、 就会每个真实表都插入相同的数据.
+     * @return
+     */
+    @PostMapping("/action/save")
+    @ApiOperation("新增用户")
+    public User save() {
+        User user = new User();
+        long userId = 123L;
+        user.setId(userId);
+        user.setCity("深圳");
+        user.setName("李四");
+        Answer answer = new Answer();
+        answer.setId(idWorker.nextId());
+        answer.setUserId(user.getId());
+        answer.setText("123");
+        answer.setResult("2");
+        userService.save(user);
+        answerService.save(answer);
+        return user;
+    }
+
+    /**
+     * 删除接口. 出现 Table 'ds_1.user' doesn't exist. (为什么是逻辑表名? 不是和新增一样, 每个表都删一次.)
+     * @param id
+     * @return
+     */
+    @PostMapping("/action/delete/{id}")
+    @ApiOperation("删除用户")
+    @HintShardingStrategy(masterRouteOnly = true)
+    public String delete(@PathVariable Long id) {
+        userService.removeById(id);
+        return "success";
+    }
 
     @GetMapping("/users")
     @ApiOperation("获取所有用户")

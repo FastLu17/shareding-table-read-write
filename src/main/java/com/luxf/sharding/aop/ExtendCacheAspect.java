@@ -1,5 +1,7 @@
 package com.luxf.sharding.aop;
 
+import com.luxf.sharding.cache.ExtendCacheEvict;
+import com.luxf.sharding.cache.ExtendCachePut;
 import com.luxf.sharding.cache.ExtendCacheable;
 import com.luxf.sharding.utils.ExpressionParseUtils;
 import com.luxf.sharding.utils.ExtendCacheHolder;
@@ -37,24 +39,26 @@ import java.time.Duration;
 @Order(Ordered.LOWEST_PRECEDENCE - 1)
 public class ExtendCacheAspect {
 
-    // TODO: 需要处理类似的ExtendCachePut、ExtendCacheEvict
-
     @Pointcut(value = "@annotation(com.luxf.sharding.cache.ExtendCacheable)")
-    public void pointCut() {
+    public void cacheablePointCut() {
     }
 
-    @Around(value = "pointCut() && @annotation(extendCacheable)")
+    @Pointcut(value = "@annotation(com.luxf.sharding.cache.ExtendCachePut)")
+    public void cachePutPointCut() {
+    }
+
+    @Pointcut(value = "@annotation(com.luxf.sharding.cache.ExtendCacheEvict)")
+    public void cacheEvictPointCut() {
+    }
+
+    @Around(value = "cacheablePointCut() && @annotation(extendCacheable)")
     public Object doAround(ProceedingJoinPoint pjp, ExtendCacheable extendCacheable) throws Throwable {
         try {
-            if (DataType.HASH.equals(extendCacheable.dataType())) {
-                Method method = ((MethodSignature) pjp.getSignature()).getMethod();
-                String hashKey = ExpressionParseUtils.getParseValue(extendCacheable.hashKey(), method, pjp.getArgs());
-                ExtendCacheHolder.setDataType(extendCacheable.dataType());
-                ExtendCacheHolder.setHashKey(hashKey);
-            }
-            long duration = extendCacheable.duration();
-            if (duration != -1) {
-                ExtendCacheHolder.setDuration(duration);
+            DataType dataType = extendCacheable.dataType();
+            ExtendCacheHolder.setDuration(extendCacheable.duration());
+            if (DataType.HASH.equals(dataType)) {
+                String spelExpression = extendCacheable.hashKey();
+                initTreadLocalValue(pjp, dataType, spelExpression);
             }
             return pjp.proceed();
         } finally {
@@ -64,5 +68,43 @@ public class ExtendCacheAspect {
              */
             ExtendCacheHolder.clear();
         }
+    }
+
+    @Around(value = "cachePutPointCut() && @annotation(extendCachePut)")
+    public Object doAround(ProceedingJoinPoint pjp, ExtendCachePut extendCachePut) throws Throwable {
+        try {
+            DataType dataType = extendCachePut.dataType();
+            ExtendCacheHolder.setDuration(extendCachePut.duration());
+            if (DataType.HASH.equals(dataType)) {
+                String spelExpression = extendCachePut.hashKey();
+                initTreadLocalValue(pjp, dataType, spelExpression);
+            }
+            return pjp.proceed();
+        } finally {
+            // 统一释放ThreadLocal资源、
+            ExtendCacheHolder.clear();
+        }
+    }
+
+    @Around(value = "cacheEvictPointCut() && @annotation(extendCachePut)")
+    public Object doAround(ProceedingJoinPoint pjp, ExtendCacheEvict extendCachePut) throws Throwable {
+        try {
+            DataType dataType = extendCachePut.dataType();
+            if (DataType.HASH.equals(dataType)) {
+                String spelExpression = extendCachePut.hashKey();
+                initTreadLocalValue(pjp, dataType, spelExpression);
+            }
+            return pjp.proceed();
+        } finally {
+            // 统一释放ThreadLocal资源、
+            ExtendCacheHolder.clear();
+        }
+    }
+
+    private void initTreadLocalValue(ProceedingJoinPoint pjp, DataType dataType, String spelExpression) {
+        Method method = ((MethodSignature) pjp.getSignature()).getMethod();
+        String hashKey = ExpressionParseUtils.getParseValue(spelExpression, method, pjp.getArgs());
+        ExtendCacheHolder.setDataType(dataType);
+        ExtendCacheHolder.setHashKey(hashKey);
     }
 }

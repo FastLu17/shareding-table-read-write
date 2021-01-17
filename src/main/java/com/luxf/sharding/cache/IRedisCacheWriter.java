@@ -86,12 +86,13 @@ public class IRedisCacheWriter implements RedisCacheWriter {
             Duration finalTtl = getFinalTtl(seconds, ttl);
             DataType dataType = ExtendCacheHolder.getDataType();
             if (DataType.HASH.equals(dataType)) {
-                // TODO: 使用lua脚本可以保证原子性、
                 String hashKey = ExtendCacheHolder.getHashKey();
                 if (isEmpty(hashKey)) {
                     return null;
                 }
                 // ExtendCacheHolder.clear();
+                // TODO: 使用lua脚本可以保证原子性、
+                //connection.eval()
                 connection.hSet(key, hashKeySerializer.serialize(hashKey), value);
                 if (shouldExpireWithin(finalTtl)) {
                     connection.expire(key, finalTtl.getSeconds());
