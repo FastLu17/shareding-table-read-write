@@ -6,10 +6,7 @@ import org.springframework.cache.interceptor.CacheAspectSupport;
 import org.springframework.cache.interceptor.CacheOperationInvoker;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.data.redis.cache.RedisCacheWriter;
-import org.springframework.data.redis.connection.DataType;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.RedisStringCommands;
+import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -33,13 +30,24 @@ import java.util.function.Function;
 @Slf4j
 public class IRedisCacheWriter implements RedisCacheWriter {
 
+    /**
+     * hash数据结构, set key field value; expire key duration;
+     */
+    private static final String SET_AND_EXPIRE_HASH_SCRIPT = "local key = KEYS[1] \n" +
+            "local hashKey = KEYS[2] \n" +
+            "local value = ARGV[1] \n" +
+            "local expire = ARGV[2] \n" +
+            "redis.call('hset', key, hashKey, value) \n" +
+            "redis.call('expire', key, expire) \n " +
+            "return redis.call('ttl', key)";
+
     private final RedisConnectionFactory connectionFactory;
     private final Duration sleepTime;
 
     /**
      * add field to serialize.
      */
-    private final RedisSerializer<String> hashKeySerializer = new StringRedisSerializer();
+    private final RedisSerializer<String> stringSerializer = new StringRedisSerializer();
 
     /**
      * @param connectionFactory must not be {@literal null}.
@@ -91,12 +99,26 @@ public class IRedisCacheWriter implements RedisCacheWriter {
                     return null;
                 }
                 // ExtendCacheHolder.clear();
-                // TODO: 使用lua脚本可以保证原子性、
-                //connection.eval()
-                connection.hSet(key, hashKeySerializer.serialize(hashKey), value);
+
+                // connection.hSet(key, stringSerializer.serialize(hashKey), value);
+                // if (shouldExpireWithin(finalTtl)) {
+                //     connection.expire(key, finalTtl.getSeconds());
+                // }
+
+                // 使用lua脚本, 保证多个redis command的原子性.
                 if (shouldExpireWithin(finalTtl)) {
-                    connection.expire(key, finalTtl.getSeconds());
+                    byte[] script = stringSerializer.serialize(SET_AND_EXPIRE_HASH_SCRIPT);
+                    byte[] duration = stringSerializer.serialize(String.valueOf(finalTtl.getSeconds()));
+                    Object eval = connection.eval(script, ReturnType.INTEGER, 2,
+                            key, stringSerializer.serialize(hashKey), value, duration);
+                    if (!Long.valueOf(finalTtl.getSeconds()).equals(eval)) {
+                        log.error("redis lua script execute result is not correct. " +
+                                "expected = [{}], result = [{}]", finalTtl.getSeconds(), eval);
+                    }
+                } else {
+                    connection.hSet(key, stringSerializer.serialize(hashKey), value);
                 }
+
                 return "OK";
             }
 
@@ -135,7 +157,7 @@ public class IRedisCacheWriter implements RedisCacheWriter {
                  * @see CacheAspectSupport#execute(CacheOperationInvoker, java.lang.reflect.Method, CacheAspectSupport.CacheOperationContexts)
                  */
                 // ExtendCacheHolder.clear();
-                byte[] hGet = connection.hGet(key, hashKeySerializer.serialize(hashKey));
+                byte[] hGet = connection.hGet(key, stringSerializer.serialize(hashKey));
                 return hGet;
             }
             return connection.get(key);
@@ -195,7 +217,7 @@ public class IRedisCacheWriter implements RedisCacheWriter {
                     return null;
                 }
                 // ExtendCacheHolder.clear();
-                connection.hDel(key, hashKeySerializer.serialize(hashKey));
+                connection.hDel(key, stringSerializer.serialize(hashKey));
                 return null;
             }
             return connection.del(key);
