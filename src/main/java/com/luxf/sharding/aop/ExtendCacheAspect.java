@@ -86,12 +86,12 @@ public class ExtendCacheAspect {
         }
     }
 
-    @Around(value = "cacheEvictPointCut() && @annotation(extendCachePut)")
-    public Object doAround(ProceedingJoinPoint pjp, ExtendCacheEvict extendCachePut) throws Throwable {
+    @Around(value = "cacheEvictPointCut() && @annotation(extendCacheEvict)")
+    public Object doAround(ProceedingJoinPoint pjp, ExtendCacheEvict extendCacheEvict) throws Throwable {
         try {
-            DataType dataType = extendCachePut.dataType();
+            DataType dataType = extendCacheEvict.dataType();
             if (DataType.HASH.equals(dataType)) {
-                String spelExpression = extendCachePut.hashKey();
+                String spelExpression = extendCacheEvict.hashKey();
                 initTreadLocalValue(pjp, dataType, spelExpression);
             }
             return pjp.proceed();
