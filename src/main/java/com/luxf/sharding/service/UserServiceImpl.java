@@ -38,7 +38,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @ExtendCacheEvict(value = "User", key = "#id", dataType = DataType.STRING)
     public boolean removeById(Serializable id) {
-        return super.removeById(id);
+        return baseMapper.deleteByIdCond(Long.parseLong(id.toString()));
     }
 
     /**

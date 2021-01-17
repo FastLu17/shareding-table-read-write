@@ -11,6 +11,11 @@ import com.luxf.sharding.service.AnswerService;
 import com.luxf.sharding.service.UserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import org.apache.shardingsphere.core.metadata.datasource.ShardingDataSourceMetaData;
+import org.apache.shardingsphere.core.optimize.result.OptimizeResult;
+import org.apache.shardingsphere.core.parse.antlr.sql.statement.SQLStatement;
+import org.apache.shardingsphere.core.route.router.sharding.RoutingEngineFactory;
+import org.apache.shardingsphere.core.rule.ShardingRule;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -64,12 +69,19 @@ public class UserController {
 
     /**
      * 删除接口. 出现 Table 'ds_1.user' doesn't exist. (为什么是逻辑表名? 不是和新增一样, 每个表都删一次.)
-     * @param id
-     * @return
+     * <p>
+     * 解析 'DELETE FROM user WHERE id = ?' 的时候, 将'FROMuser'连接在一起了(错误日志: no viable alternative at input 'FROMuser'), 没有tableName。
+     *
+     * @see RoutingEngineFactory#newInstance(ShardingRule, ShardingDataSourceMetaData, SQLStatement, OptimizeResult)
+     * 此方法中,tableNames.isEmpty(), return -> UnicastRoutingEngine.
+     *
+     * TODO: 应该是由于'user'是关键字的原因引起的问题. 手写SQL后, 不再出现此问题. {@link com.luxf.sharding.mapper.UserMapper#deleteByIdCond(long)}
      */
     @PostMapping("/action/delete/{id}")
     @ApiOperation("删除用户")
-    @HintShardingStrategy(masterRouteOnly = true)
+    @HintShardingStrategy(masterRouteOnly = true, tableShardingValues = {
+            @HintTableStrategy(logicTable = "user", spelValue = "#id", divisor = 4)
+    })
     public String delete(@PathVariable Long id) {
         userService.removeById(id);
         return "success";

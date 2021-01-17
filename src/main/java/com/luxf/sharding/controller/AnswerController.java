@@ -1,21 +1,29 @@
 package com.luxf.sharding.controller;
 
 import com.luxf.sharding.annotations.HintMasterOnly;
+import com.luxf.sharding.annotations.HintShardingStrategy;
 import com.luxf.sharding.service.AnswerService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
 @RestController
 @Api(value = "答案管理", tags = "答案管理")
+@RequestMapping("/answer")
 public class AnswerController {
 
     @Resource
     private AnswerService answerService;
+
+    @PostMapping("/action/delete/{id}")
+    @ApiOperation("删除答案")
+    @HintShardingStrategy(masterRouteOnly = true)
+    public String delete(@PathVariable Long id) {
+        answerService.removeById(id);
+        return "success";
+    }
 
     @GetMapping("/answers")
     @ApiOperation("获取所有答案")
