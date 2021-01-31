@@ -1,6 +1,7 @@
 package com.luxf.sharding.controller;
 
 import cn.hutool.core.lang.Snowflake;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.luxf.sharding.annotations.HintMasterOnly;
 import com.luxf.sharding.annotations.HintShardingStrategy;
 import com.luxf.sharding.annotations.HintTableStrategy;
@@ -11,19 +12,20 @@ import com.luxf.sharding.service.AnswerService;
 import com.luxf.sharding.service.UserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import org.apache.shardingsphere.api.sharding.complex.ComplexKeysShardingAlgorithm;
+import org.apache.shardingsphere.api.sharding.complex.ComplexKeysShardingValue;
 import org.apache.shardingsphere.core.metadata.datasource.ShardingDataSourceMetaData;
 import org.apache.shardingsphere.core.optimize.result.OptimizeResult;
 import org.apache.shardingsphere.core.parse.antlr.sql.statement.SQLStatement;
 import org.apache.shardingsphere.core.route.router.sharding.RoutingEngineFactory;
 import org.apache.shardingsphere.core.rule.ShardingRule;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @Api(value = "用户管理", tags = "用户管理")
@@ -43,6 +45,20 @@ public class UserController {
     @HintShardingStrategy(masterRouteOnly = true)
     public User getById(@PathVariable Long id) {
         return userService.getById(id);
+    }
+
+    /**
+     * 使用{@link ComplexKeysShardingAlgorithm},查询条件存在指定的字段时,
+     * 才会进入{@link ComplexKeysShardingAlgorithm#doSharding(Collection, ComplexKeysShardingValue)}方法进行分片、
+     *
+     * @return
+     */
+    @GetMapping("/getByCond")
+    @ApiOperation("根据条件查询用户")
+    @HintShardingStrategy(masterRouteOnly = true)
+    public User getByCond(@RequestParam(required = false) String name, @RequestParam(required = false) String city) {
+        return userService.getOne(Wrappers.<User>lambdaQuery().eq(Objects.nonNull(city), User::getCity, city)
+                .eq(Objects.nonNull(name), User::getName, name));
     }
 
     /**
